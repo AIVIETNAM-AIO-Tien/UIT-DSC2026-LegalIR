@@ -1,4 +1,8 @@
+venv/
+.venv/
+
 data/selected-contexts/
+data/
 outputs/
 *.index
 *.npy
