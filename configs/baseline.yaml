@@ -1,0 +1,18 @@
+preprocessing:
+  normalization: true
+  tokenizer: pyvi
+
+chunking:
+  method: fixed_size
+  size: 2048
+  overlap: 256
+
+ranking:
+  aggregation: max
+
+evaluation:
+  k:
+    - 10
+    - 20
+    - 50
+    - 100

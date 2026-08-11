@@ -1,0 +1,9 @@
+data/selected-contexts/
+outputs/
+*.index
+*.npy
+*.pt
+*.pth
+*.bin
+__pycache__/
+.ipynb_checkpoints/
