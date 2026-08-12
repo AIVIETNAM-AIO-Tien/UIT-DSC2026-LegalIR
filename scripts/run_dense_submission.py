@@ -125,9 +125,7 @@ def main():
     print("=" * 60)
 
     retriever = DenseRetriever(
-        model=model,
-        chunks_path=args.chunks,
-        embeddings_path=args.embeddings,
+        model_name=MODEL_NAME
     )
 
     print(
