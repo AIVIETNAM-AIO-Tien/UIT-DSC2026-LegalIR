@@ -54,35 +54,11 @@ def load_documents(contexts_dir: str | Path) -> list[Document]:
     return documents
 
 
-def load_queries(train_path: str | Path) -> list[Query]:
-    """
-    Load queries and their ground-truth answers from train.json.
-
-    Expected format:
-
-    {
-        "19826": {
-            "question": "...",
-            "answer": ["44802", "65293"]
-        }
-    }
-
-    Returns
-    -------
-    list[Query]
-        List of loaded queries.
-    """
-
-    train_path = Path(train_path)
-
-    if not train_path.exists():
-        raise FileNotFoundError(
-            f"Train file not found: {train_path}"
-        )
-
-    with train_path.open(
+def load_queries(path: str) -> list[Query]:
+    with open(
+        path,
         "r",
-        encoding="utf-8"
+        encoding="utf-8",
     ) as f:
         data = json.load(f)
 
@@ -90,15 +66,20 @@ def load_queries(train_path: str | Path) -> list[Query]:
 
     for query_id, item in data.items():
 
-        query = Query(
-            query_id=str(query_id),
-            question=item["question"],
-            answers=[
-                str(answer_id)
-                for answer_id in item["answer"]
-            ],
-        )
+        answers = item.get("answer")
 
-        queries.append(query)
+        if answers is not None:
+            answers = [
+                str(answer_id)
+                for answer_id in answers
+            ]
+
+        queries.append(
+            Query(
+                query_id=str(query_id),
+                question=item["question"],
+                answers=answers,
+            )
+        )
 
     return queries

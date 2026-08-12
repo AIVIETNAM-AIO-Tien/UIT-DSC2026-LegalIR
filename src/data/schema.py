@@ -12,8 +12,7 @@ class Document:
 class Query:
     query_id: str
     question: str
-    answers: list[str]
-
+    answers: list[str] | None
 
 @dataclass
 class Chunk:
