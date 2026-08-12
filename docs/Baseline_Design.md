@@ -300,8 +300,8 @@ Fixed-size Chunking
 Configuration hiện tại:
 
 ```text
-CHUNK_SIZE = 2048
-OVERLAP = 256
+CHUNK_SIZE = 2048 tokens
+OVERLAP = 256 tokens
 ```
 
 Pipeline:
@@ -531,7 +531,7 @@ Dense baseline đang trong quá trình chạy benchmark.
 Do đó:
 
 ```text
-Dense Recall@100 = TBD
+Dense Recall@100 = 0.9840
 ```
 
 Không được ghi nhận một giá trị Dense benchmark trước khi experiment thực sự hoàn thành.
@@ -628,7 +628,7 @@ Benchmark được quản lý tập trung:
 | Method   | Preprocessing        | Chunking       | Similarity  | Aggregation | Recall@100 |
 | -------- | -------------------- | -------------- | ----------- | ----------- | ---------: |
 | BM25-v0  | Normalization + PyVi | Fixed 2048/256 | BM25        | MAX         | **0.9458** |
-| Dense-v0 | Normalization        | Fixed          | Dot Product | MAX         |    **TBD** |
+| Dense-v0 | Normalization        | Fixed          | Dot Product | MAX         |    **0.9840** |
 
 Khi một phương pháp mới được thử nghiệm, không ghi đè kết quả cũ.
 
