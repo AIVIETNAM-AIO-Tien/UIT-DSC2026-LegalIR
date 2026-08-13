@@ -235,3 +235,39 @@ Nhiệm vụ của module này là tiếp nhận danh sách tài liệu đã đ�
 | **Modular Scalability** | Các module Dense, BM25 và Submission tách biệt hoàn toàn, dễ dàng thay thế mô hình Embedding mới hoặc đổi thuật toán BM25 mà không ảnh hưởng toàn bộ hệ thống. |
 | **Efficient Indexing** | Khả năng Save/Load index nhị phân giúp tiết kiệm thời gian chạy thử nghiệm và triển khai thực tế. |
 | **Hybrid Potential** | Kiến trúc sẵn sàng cho việc kết hợp (Hybrid Search / Ensembling) giữa kết quả của Dense Retriever và BM25 Retriever thông qua các phương pháp RRF (Reciprocal Rank Fusion) hoặc Re-ranking. |
+
+## RUN
+> top-k: là top-k document không phải top-k chunks
+
+* `run_dense_submission.py`
+```bash
+!PYTHONPATH=. python scripts/run_dense_submission.py \
+  --test /content/drive/MyDrive/LEGALIR-DSC/public-official.json \
+  --chunks /content/drive/MyDrive/LEGALIR-DSC/output/dense/dense_chunks.json \
+  --embeddings /content/drive/MyDrive/LEGALIR-DSC/output/dense/dense_chunk_embeddings.npy \
+  --output /content/drive/MyDrive/LEGALIR-DSC/output/submission.json \
+  --top-k 5
+```
+
+* `run_dense.py`
+  * load index
+```bash
+!PYTHONPATH=. python scripts/run_dense.py \
+    --train /content/drive/MyDrive/LEGALIR-DSC/train.json \
+    --chunks /content/drive/MyDrive/LEGALIR-DSC/output/dense/dense_chunks.json \
+    --embeddings /content/drive/MyDrive/LEGALIR-DSC/output/dense/dense_chunk_embeddings.npy \
+    --output /content/drive/MyDrive/LEGALIR-DSC/output/dense/dense_result.json \
+    --top-k 100
+```
+
+  * build index
+
+```bash
+!PYTHONPATH=. python /content/UIT-DSC2026-LegalIR/scripts/run_dense.py \
+    --train /content/drive/MyDrive/LEGALIR-DSC/train.json \
+    --contexts /content/drive/MyDrive/LEGALIR-DSC/selected-contexts \
+    --output /content/drive/MyDrive/LEGALIR-DSC/output/dense/ense_result.json \
+    --output-chunks /content/drive/MyDrive/LEGALIR-DSC/output/dense/dense_chunks.json \
+    --output-embeddings /content/drive/MyDrive/LEGALIR-DSC/output/dense/dense_chunk_embeddings.npy \
+    --top-k 100
+```

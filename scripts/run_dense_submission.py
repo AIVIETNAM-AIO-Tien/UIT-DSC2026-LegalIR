@@ -95,26 +95,6 @@ def main():
         f"Loaded {len(queries)} queries."
     )
 
-    # ==========================================================
-    # Load Dense model
-    # ==========================================================
-
-    print("=" * 60)
-    print("Loading Dense model")
-    print("=" * 60)
-
-    model = SentenceTransformer(
-        args.model
-    )
-
-    print(
-        f"Model: {args.model}"
-    )
-
-    print(
-        "Max sequence length:",
-        model.max_seq_length
-    )
 
     # ==========================================================
     # Load Dense Retriever

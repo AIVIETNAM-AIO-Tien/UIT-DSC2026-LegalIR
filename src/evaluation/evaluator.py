@@ -4,7 +4,6 @@ from src.evaluation.metrics import recall_at_k
 
 
 DEFAULT_K_VALUES = [
-    1,
     5,
     10,
     20,
