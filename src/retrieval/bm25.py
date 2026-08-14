@@ -71,6 +71,9 @@ class BM25Retriever(Retriever):
                 "top_k must be greater than 0"
             )
 
+        if chunks is None:
+            chunks = self._chunks
+            
         if not chunks:
             return []
 
