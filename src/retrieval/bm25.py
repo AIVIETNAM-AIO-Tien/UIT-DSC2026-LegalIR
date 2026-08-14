@@ -8,21 +8,33 @@ from src.retrieval.base import Retriever
 
 class BM25Retriever(Retriever):
     """
-    BM25 chunk-level retriever using rank_bm25.BM25Okapi.
+    BM25 chunk-level retriever.
+
+    The BM25 algorithm is configurable so that the same
+    retriever interface can be used with:
+
+        - BM25Okapi
+        - BM25L
+        - BM25Plus
+
+    The Vietnamese tokenization is handled separately by
+    tokenize_fn.
     """
 
     def __init__(
         self,
         tokenize_fn: Callable[[str], list[str]],
-        k1: float = 1.5,
-        b: float = 0.75,
+        bm25_class=BM25Okapi,
+        bm25_kwargs: dict | None = None,
+
     ):
         self.tokenize_fn = tokenize_fn
-        self.k1 = k1
-        self.b = b
+        self.bm25_class = bm25_class
+        self.bm25_kwargs = bm25_kwargs or {}
 
-        self._bm25: BM25Okapi | None = None
+        self._bm25 = None
         self._chunks: list[Chunk] = []
+        self._tokenized_corpus: list[list[str]] = []
 
     def fit(
         self,
@@ -37,15 +49,14 @@ class BM25Retriever(Retriever):
 
         self._chunks = chunks
 
-        tokenized_corpus = [
+        self._tokenized_corpus = [
             self.tokenize_fn(chunk.text)
             for chunk in chunks
         ]
 
-        self._bm25 = BM25Okapi(
-            tokenized_corpus,
-            k1=self.k1,
-            b=self.b,
+        self._bm25 = self.bm25_class(
+            self._tokenized_corpus,
+            **self.bm25_kwargs,
         )
 
     def retrieve(

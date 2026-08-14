@@ -23,3 +23,6 @@ def tokenize_vietnamese(text: str) -> list[str]:
     tokenized_text = ViTokenizer.tokenize(text)
 
     return tokenized_text.split()
+
+def decode_vietnamese(tokens: list[str]) -> str:
+    return " ".join(tokens)

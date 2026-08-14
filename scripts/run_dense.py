@@ -170,6 +170,14 @@ def parse_args():
             "per query."
         ),
     )
+    
+    parser.add_argument(
+        "--eval-k",
+        type=int,
+        nargs="+",
+        default=DEFAULT_K_VALUES,
+        help="Recall@K values.",
+    )
 
     return parser.parse_args()
 
@@ -494,7 +502,7 @@ def main():
     print("=" * 60)
 
     evaluator = Evaluator(
-        k_values=DEFAULT_K_VALUES
+        k_values=args.eval_k
     )
 
     evaluation = evaluator.evaluate(
@@ -575,7 +583,7 @@ def main():
 
     aggregate = evaluation["aggregate"]
 
-    for k in DEFAULT_K_VALUES:
+    for k in args.eval_k:
 
         key = f"recall@{k}"
 
