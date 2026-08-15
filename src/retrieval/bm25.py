@@ -62,7 +62,7 @@ class BM25Retriever(Retriever):
     def retrieve(
         self,
         query: Query,
-        chunks: list[Chunk],
+        chunks: list[Chunk] | None = None,
         top_k: int = 1000,
     ) -> list[RetrievalResult]:
 
