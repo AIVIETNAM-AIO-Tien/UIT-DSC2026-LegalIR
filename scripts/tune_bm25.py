@@ -11,116 +11,14 @@ from src.evaluation.evaluator import Evaluator
 from src.preprocessing.tokenize import tokenize_vietnamese
 from src.retrieval.aggregation import aggregate_max_score
 from src.retrieval.bm25 import BM25Retriever
-from src.retrieval.bm25_parrallel import ParallelBM25Retriever
 from src.retrieval.rank_bm25 import BM25L, BM25Okapi, BM25Plus
+from utils.bm25_preprocess_arg_parser import parse_args
 
 BM25_VARIANTS = {
     "okapi": BM25Okapi,
     "bm25l": BM25L,
     "bm25plus": BM25Plus,
 }
-
-DEFAULT_K_VALUES = [5, 10, 20, 50, 100]
-
-
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Fast BM25 Indexing, Retrieval, and Evaluation using cached preprocessed data."
-    )
-
-    # ----------------------------------------------------------
-    # Cached chunks and queries input paths
-    # ----------------------------------------------------------
-    parser.add_argument(
-        "--chunks-file",
-        type=str,
-        required=True,
-        help="Path to preprocessed chunks (.pkl)",
-    )
-    parser.add_argument(
-        "--queries-file",
-        type=str,
-        required=True,
-        help="Path to preprocessed queries (.pkl)",
-    )
-
-    # ----------------------------------------------------------
-    # BM25 Variant & Dynamic Hyperparameters
-    # ----------------------------------------------------------
-    parser.add_argument(
-        "--variant",
-        type=str,
-        default="okapi",
-        choices=["okapi", "bm25l", "bm25plus"],
-        help="BM25 variant.",
-    )
-
-    # Accept multiple values for k1 and b to enable parameter sweeps
-    parser.add_argument(
-        "--k1",
-        type=float,
-        nargs="+",
-        default=[1.5],
-        help="BM25 k1 parameter(s). Provide multiple values for grid search (e.g. --k1 1.2 1.5 2.0).",
-    )
-
-    parser.add_argument(
-        "--b",
-        type=float,
-        nargs="+",
-        default=[0.75],
-        help="BM25 b parameter(s). Provide multiple values for grid search (e.g. --b 0.3 0.5 0.75).",
-    )
-
-    parser.add_argument(
-        "--epsilon",
-        type=float,
-        default=0.25,
-        help="BM25Okapi epsilon parameter.",
-    )
-
-    parser.add_argument(
-        "--delta",
-        type=float,
-        default=0.5,
-        help="BM25L/BM25Plus delta parameter.",
-    )
-
-    # ----------------------------------------------------------
-    # Retrieval / Evaluation
-    # ----------------------------------------------------------
-    parser.add_argument(
-        "--retrieval-k",
-        type=int,
-        default=100,
-        help="Number of documents retrieved per query.",
-    )
-    parser.add_argument(
-        "--eval-k",
-        type=int,
-        nargs="+",
-        default=DEFAULT_K_VALUES,
-        help="Recall@K evaluation values.",
-    )
-
-    # ----------------------------------------------------------
-    # Output
-    # ----------------------------------------------------------
-    parser.add_argument(
-        "--output",
-        type=str,
-        default="outputs/bm25/result_fast.json",
-        help="Path to save evaluation summary JSON.",
-    )
-    parser.add_argument(
-        "--save-retrieval",
-        type=str,
-        default=None,
-        help="Optional path to save raw document retrieval predictions.",
-    )
-
-    return parser.parse_args()
-
 
 def build_bm25_kwargs(variant, k1, b, epsilon, delta):
     if variant == "okapi":
@@ -146,15 +44,15 @@ def run_experiment(
     print('Fitting start.')
     t_start = time.time()
 
-    retriever = ParallelBM25Retriever(
+    retriever = BM25Retriever(
         tokenize_fn=tokenize_vietnamese,
         bm25_class=bm25_class,
         bm25_kwargs=bm25_kwargs,
     )
     # Use parallel tokenization during fit
-    retriever.fit_parallel(
+    retriever.fit(
         chunks,
-        max_workers=max(1, cpu_count()//2)
+        parallel=True
     )
 
     fit_time = time.time() - t_start
@@ -171,16 +69,11 @@ def run_experiment(
     log_interval = max(1, total_queries // 10) if total_queries > 0 else 1
 
     for i, query in enumerate(queries, 1):
-        chunk_results = retriever.retrieve(query=query, chunks=chunks)
+        chunk_results = retriever.retrieve(query=query, top_k=retrieval_k)
 
-        document_results = aggregate_max_score(
-            chunk_results,
-            top_k=retrieval_k,
-        )
+        document_results = aggregate_max_score(chunk_results, top_k=retrieval_k)
 
-        retrieved_documents[query.query_id] = [
-            res.document_id for res in document_results
-        ]
+        retrieved_documents[query.query_id] = [ res.document_id for res in document_results ]
 
         if i % log_interval == 0 or i == total_queries:
             progress_percent = int((i / total_queries) * 100) if total_queries > 0 else 100
@@ -284,7 +177,7 @@ def main():
                 best_predictions = retrieved_docs
 
     # ----------------------------------------------------------
-    # Step 8: Export Results & Summary Reporting
+    # Export Results & Summary Reporting
     # ----------------------------------------------------------
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
