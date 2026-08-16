@@ -23,6 +23,9 @@ def _tokenize_chunk_text(chunk: Chunk, tokenize_fn: TokenizerFunc) -> list[Token
     return tokenize_fn(chunk.text)
 
 
+def _tokenize_chunk_text(chunk, tokenize_fn):
+    return tokenize_fn(chunk.text)
+
 
 class BM25Retriever(Retriever):
     def __init__(

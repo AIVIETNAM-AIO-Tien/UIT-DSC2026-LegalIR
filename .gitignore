@@ -1,8 +1,8 @@
 venv/
 .venv/
 
-data/selected-contexts/
-data/
+./data/selected-contexts/
+./data/
 cache/
 outputs/
 *.index
