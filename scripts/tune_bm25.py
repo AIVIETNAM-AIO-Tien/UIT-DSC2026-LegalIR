@@ -12,7 +12,7 @@ from src.preprocessing.tokenize import tokenize_vietnamese
 from src.retrieval.aggregation import aggregate_max_score
 from src.retrieval.bm25 import BM25Retriever
 from src.retrieval.rank_bm25 import BM25L, BM25Okapi, BM25Plus
-from utils.bm25_preprocess_arg_parser import parse_args
+from utils.tune_bm25_arg_parser import parse_args
 
 BM25_VARIANTS = {
     "okapi": BM25Okapi,
