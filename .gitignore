@@ -12,7 +12,7 @@ outputs/
 __pycache__/
 .ipynb_checkpoints/
 
-cache/*
+cache/
 train/
 train/context/selected-contexts
 
