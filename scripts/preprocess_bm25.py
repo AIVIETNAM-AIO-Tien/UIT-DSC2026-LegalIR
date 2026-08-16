@@ -8,50 +8,7 @@ from src.data.loader import load_documents, load_queries
 from src.preprocessing.normalize import normalize_text
 from src.preprocessing.tokenize import tokenize_vietnamese, decode_vietnamese
 from src.chunking.fixed_size_parallel import FixedSizeChunkerParallel
-
-
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Precompute and cache tokenized corpus & queries."
-    )
-
-    # Input paths
-    parser.add_argument(
-        "--train",
-        type=str,
-        required=True,
-        help="Path to train.json",
-    )
-    parser.add_argument(
-        "--contexts",
-        type=str,
-        required=True,
-        help="Path to selected-contexts directory",
-    )
-
-    # Chunking configuration
-    parser.add_argument(
-        "--chunk-size",
-        type=int,
-        default=2048,
-        help="Chunk size in tokenizer units.",
-    )
-    parser.add_argument(
-        "--overlap",
-        type=int,
-        default=256,
-        help="Chunk overlap in tokenizer units.",
-    )
-
-    # Output path
-    parser.add_argument(
-        "--output-dir",
-        type=str,
-        default="cache/",
-        help="Directory where preprocessed pickles will be saved.",
-    )
-
-    return parser.parse_args()
+from utils.bm25_preprocess_arg_parser import parse_args
 
 
 def main():
@@ -106,7 +63,7 @@ def main():
     # ----------------------------------------------------------
     # Cache Preprocessed Artifacts
     # ----------------------------------------------------------
-    print("\n[4/4] Saving Preprocessed Data to Disk...")
+    print("\nSaving Preprocessed Data to Disk...")
 
     chunks_file = (
         output_dir / f"chunks_cs{args.chunk_size}_ov{args.overlap}.pkl"
