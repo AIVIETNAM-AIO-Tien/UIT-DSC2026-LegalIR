@@ -10,7 +10,6 @@ class Retriever(ABC):
     def retrieve(
         self,
         query: Query,
-        chunks: list[Chunk],
         top_k: int = 100,
     ) -> list[RetrievalResult]:
         """

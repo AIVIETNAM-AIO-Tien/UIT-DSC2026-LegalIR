@@ -18,7 +18,7 @@ class Query:
 class Chunk:
     chunk_id: str
     document_id: str
-    text: str
+    text: str # this stores raw text
     chunk_index: int
     metadata: dict
 
