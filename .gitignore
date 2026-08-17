@@ -3,6 +3,7 @@ venv/
 
 data/selected-contexts/
 data/
+cache/
 outputs/
 *.index
 *.npy
