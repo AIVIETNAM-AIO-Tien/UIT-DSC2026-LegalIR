@@ -1,7 +1,13 @@
 import math
+from typing import Sequence, cast, overload
 import numpy as np
+
 from collections import Counter
 from multiprocessing import Pool, cpu_count
+
+from numpy._typing import NDArray
+
+from src.types import CorpusTokens, RawText, Token, TokenizerFunc
 
 """
 All of these algorithms have been taken from the paper:
@@ -11,73 +17,103 @@ Here we implement all the BM25 variations mentioned.
 """
 
 
+type InvertedIndexTable = dict[
+    Token, tuple[NDArray[np.int32], NDArray[np.float64]]
+] 
+
+
 class BM25:
-    def __init__(self, corpus, tokenizer=None):
-        self.corpus_size = 0
-        self.avgdl = 0
-        self.doc_freqs = []
-        self.idf = {}
-        self.doc_len = []
-        self.tokenizer = tokenizer
-        self._inverted_index = {}
+    @overload
+    def __init__(
+        self,
+        corpus: CorpusTokens,
+        tokenizer: None = None,
+    ) -> None: ...
 
-        if tokenizer:
-            corpus = self._tokenize_corpus(corpus)
+    @overload
+    def __init__(
+        self,
+        corpus: Sequence[RawText],
+        tokenizer: TokenizerFunc,
+    ) -> None: ...
 
-        nd = self._initialize(corpus)
+    def __init__(self, corpus: CorpusTokens | Sequence[RawText], tokenizer: TokenizerFunc | None = None):
+        self.corpus_size: int = 0
+        self.avgdl: float = 0
+        self.doc_freqs: list[dict[Token, int]] = []
+        self.idf: dict[Token, float] = {}
+        self.doc_len: NDArray[np.float64]
+        self.tokenizer: TokenizerFunc | None = tokenizer
+        self._inverted_index: InvertedIndexTable = {}
+
+        if tokenizer is not None:
+            corpus = self._tokenize_corpus(cast(Sequence[RawText], corpus))
+        else:
+            corpus = cast(CorpusTokens, corpus)
+
+        nd: dict[Token, int] = self._initialize(corpus)
         self._calc_idf(nd)
 
-    def _initialize(self, corpus):
-        nd = {}  # word -> number of documents with word
-        num_doc = 0
-        inverted_index = {}
-        doc_lengths = []
+    def _initialize(self, corpus: CorpusTokens) -> dict[Token, int]:
+        nd: dict[Token, int] = {}  # word -> number of documents with word
+        num_doc: int = 0
+        inverted_index: dict[Token, tuple[list[int], list[int]]] = {}
+        doc_lengths: list[int] = []
 
-        for doc_idx, document in enumerate(corpus):
-            doc_len = len(document)
+        doc_idx: int
+        tokenized_document: list[Token]
+        for doc_idx, tokenized_document in enumerate(corpus):
+            doc_len: int = len(tokenized_document)
             doc_lengths.append(doc_len)
             num_doc += doc_len
 
-            frequencies = Counter(document)
+            frequencies: dict[Token, int] = Counter(tokenized_document)
             self.doc_freqs.append(frequencies)
 
-            for word, freq in frequencies.items():
-                nd[word] = nd.get(word, 0) + 1
-                if word not in inverted_index:
-                    inverted_index[word] = ([], [])
-                inverted_index[word][0].append(doc_idx)
-                inverted_index[word][1].append(freq)
+            token: Token
+            freq: int
+            for token, freq in frequencies.items():
+                nd[token] = nd.get(token, 0) + 1
+                if token not in inverted_index:
+                    inverted_index[token] = ([], [])
+                inverted_index[token][0].append(doc_idx)
+                inverted_index[token][1].append(freq)
 
             self.corpus_size += 1
 
-        self.doc_len = np.array(doc_lengths, dtype=np.float64)
-        self.avgdl = num_doc / self.corpus_size if self.corpus_size > 0 else 0
+        self.doc_len: NDArray[np.float64] = np.array(doc_lengths, dtype=np.float64)
+        self.avgdl: float = num_doc / self.corpus_size if self.corpus_size > 0 else 0
 
-        self._inverted_index = {
-            word: (
+        self._inverted_index: InvertedIndexTable = {
+            token: (
                 np.array(docs, dtype=np.int32),
                 np.array(freqs, dtype=np.float64),
             )
-            for word, (docs, freqs) in inverted_index.items()
+            for token, (docs, freqs) in inverted_index.items()
         }
         return nd
 
-    def _tokenize_corpus(self, corpus):
+    # this duplicate stuff, we should just instastiate this class with
+    # pre-tokenized corpora and nuke this thing out of existence
+    def _tokenize_corpus(self, corpus: Sequence[RawText]) -> CorpusTokens:
+        if self.tokenizer is None: return []
+
         workers = max(1, cpu_count() - 2)
         with Pool(workers) as pool:
-            tokenized_corpus = pool.map(self.tokenizer, corpus)
+            tokenized_corpus: CorpusTokens = pool.map(self.tokenizer, corpus)
+
         return tokenized_corpus
 
-    def _calc_idf(self, nd):
+    def _calc_idf(self, nd: dict[Token, int]):
         raise NotImplementedError()
 
-    def get_scores(self, query):
+    def get_scores(self, query: list[Token]) -> NDArray[np.float64]:
         raise NotImplementedError()
 
     def get_batch_scores(self, query, doc_ids):
         raise NotImplementedError()
 
-    def get_top_n(self, query, documents, n=5):
+    def get_top_n(self, query: list[Token], documents, n: int = 5):
         assert (
             self.corpus_size == len(documents)
         ), "The documents given don't match the index corpus!"
@@ -93,10 +129,10 @@ class BM25:
 
 
 class BM25Okapi(BM25):
-    def __init__(self, corpus, tokenizer=None, k1=1.5, b=0.75, epsilon=0.25):
-        self.k1 = k1
-        self.b = b
-        self.epsilon = epsilon
+    def __init__(self, corpus, tokenizer=None, k1: float =1.5, b: float =0.75, epsilon: float =0.25):
+        self.k1: float = k1
+        self.b: float = b
+        self.epsilon: float = epsilon
         super().__init__(corpus, tokenizer)
 
     def _calc_idf(self, nd):
@@ -112,13 +148,13 @@ class BM25Okapi(BM25):
             idf_sum += idf
             if idf < 0:
                 negative_idfs.append(word)
-        self.average_idf = idf_sum / len(self.idf) if self.idf else 0
+        self.average_idf: float = idf_sum / len(self.idf) if self.idf else 0
 
         eps = self.epsilon * self.average_idf
         for word in negative_idfs:
             self.idf[word] = eps
 
-    def get_scores(self, query):
+    def get_scores(self, query: list[Token]) -> NDArray[np.float64]:
         """The ATIRE BM25 variant uses an idf function which uses a log(idf)
 
         score. To prevent negative idf scores, this algorithm also adds a floor
@@ -127,20 +163,20 @@ class BM25Okapi(BM25):
         :return:
         """
         score = np.zeros(self.corpus_size, dtype=np.float64)
-        for q, q_count in Counter(query).items():
-            idf = self.idf.get(q)
-            if not idf or q not in self._inverted_index:
+        for tok, tok_count in Counter(query).items():
+            idf = self.idf.get(tok)
+            if not idf or tok not in self._inverted_index:
                 continue
-            doc_ids, q_freq = self._inverted_index[q]
+            doc_ids, tok_freq = self._inverted_index[tok]
             doc_len = self.doc_len[doc_ids]
             score[doc_ids] += (
-                q_count
+                tok_count
                 * idf
                 * (
-                    q_freq
+                    tok_freq
                     * (self.k1 + 1)
                     / (
-                        q_freq
+                        tok_freq
                         + self.k1
                         * (1 - self.b + self.b * doc_len / self.avgdl)
                     )
@@ -153,12 +189,12 @@ class BM25Okapi(BM25):
         assert all(di < len(self.doc_freqs) for di in doc_ids)
         score = np.zeros(len(doc_ids), dtype=np.float64)
         doc_len = self.doc_len[doc_ids]
-        for q, q_count in Counter(query).items():
-            idf = self.idf.get(q)
+        for tok, tok_count in Counter(query).items():
+            idf = self.idf.get(tok)
             if not idf:
                 continue
             q_freq = np.fromiter(
-                (self.doc_freqs[di].get(q, 0) for di in doc_ids),
+                (self.doc_freqs[di].get(tok, 0) for di in doc_ids),
                 dtype=np.float64,
                 count=len(doc_ids),
             )
@@ -168,7 +204,7 @@ class BM25Okapi(BM25):
             q_freq_nz = q_freq[nz]
             doc_len_nz = doc_len[nz]
             score[nz] += (
-                q_count
+                tok_count
                 * idf
                 * (
                     q_freq_nz
@@ -195,16 +231,16 @@ class BM25L(BM25):
             idf = math.log((self.corpus_size + 1) / (freq + 0.5))
             self.idf[word] = idf
 
-    def get_scores(self, query):
+    def get_scores(self, query: list[Token]) -> NDArray[np.float64]:
         score = np.zeros(self.corpus_size, dtype=np.float64)
-        for q, q_count in Counter(query).items():
-            idf = self.idf.get(q)
+        for tok, tok_count in Counter(query).items():
+            idf = self.idf.get(tok)
             if not idf:
                 continue
             base_score = idf * (self.k1 + 1) * self.delta / (self.k1 + self.delta)
-            score += q_count * base_score
-            if q in self._inverted_index:
-                doc_ids, q_freq = self._inverted_index[q]
+            score += tok_count * base_score
+            if tok in self._inverted_index:
+                doc_ids, q_freq = self._inverted_index[tok]
                 doc_len = self.doc_len[doc_ids]
                 ctd = q_freq / (1 - self.b + self.b * doc_len / self.avgdl)
                 val_sparse = (
@@ -213,7 +249,7 @@ class BM25L(BM25):
                     * (ctd + self.delta)
                     / (self.k1 + ctd + self.delta)
                 )
-                score[doc_ids] += q_count * (val_sparse - base_score)
+                score[doc_ids] += tok_count * (val_sparse - base_score)
         return score
 
     def get_batch_scores(self, query, doc_ids):
@@ -221,14 +257,14 @@ class BM25L(BM25):
         assert all(di < len(self.doc_freqs) for di in doc_ids)
         score = np.zeros(len(doc_ids), dtype=np.float64)
         doc_len = self.doc_len[doc_ids]
-        for q, q_count in Counter(query).items():
-            idf = self.idf.get(q)
+        for tok, tok_count in Counter(query).items():
+            idf = self.idf.get(tok)
             if not idf:
                 continue
             base_score = idf * (self.k1 + 1) * self.delta / (self.k1 + self.delta)
-            score += q_count * base_score
+            score += tok_count * base_score
             q_freq = np.fromiter(
-                (self.doc_freqs[di].get(q, 0) for di in doc_ids),
+                (self.doc_freqs[di].get(tok, 0) for di in doc_ids),
                 dtype=np.float64,
                 count=len(doc_ids),
             )
@@ -242,7 +278,7 @@ class BM25L(BM25):
                 * (ctd + self.delta)
                 / (self.k1 + ctd + self.delta)
             )
-            score[nz] += q_count * (val_nz - base_score)
+            score[nz] += tok_count * (val_nz - base_score)
         return score.tolist()
 
 
@@ -258,18 +294,18 @@ class BM25Plus(BM25):
             idf = math.log((self.corpus_size + 1) / freq)
             self.idf[word] = idf
 
-    def get_scores(self, query):
+    def get_scores(self, query: list[Token]) -> NDArray[np.float64]:
         score = np.zeros(self.corpus_size, dtype=np.float64)
-        for q, q_count in Counter(query).items():
-            idf = self.idf.get(q)
+        for tok, tok_count in Counter(query).items():
+            idf = self.idf.get(tok)
             if not idf:
                 continue
-            score += q_count * idf * self.delta
-            if q in self._inverted_index:
-                doc_ids, q_freq = self._inverted_index[q]
+            score += tok_count * idf * self.delta
+            if tok in self._inverted_index:
+                doc_ids, q_freq = self._inverted_index[tok]
                 doc_len = self.doc_len[doc_ids]
                 score[doc_ids] += (
-                    q_count
+                    tok_count
                     * idf
                     * (q_freq * (self.k1 + 1))
                     / (
@@ -284,13 +320,13 @@ class BM25Plus(BM25):
         assert all(di < len(self.doc_freqs) for di in doc_ids)
         score = np.zeros(len(doc_ids), dtype=np.float64)
         doc_len = self.doc_len[doc_ids]
-        for q, q_count in Counter(query).items():
-            idf = self.idf.get(q)
+        for tok, tok_count in Counter(query).items():
+            idf = self.idf.get(tok)
             if not idf:
                 continue
-            score += q_count * idf * self.delta
+            score += tok_count * idf * self.delta
             q_freq = np.fromiter(
-                (self.doc_freqs[di].get(q, 0) for di in doc_ids),
+                (self.doc_freqs[di].get(tok, 0) for di in doc_ids),
                 dtype=np.float64,
                 count=len(doc_ids),
             )
@@ -298,7 +334,7 @@ class BM25Plus(BM25):
             if len(nz) == 0:
                 continue
             score[nz] += (
-                q_count
+                tok_count
                 * idf
                 * (q_freq[nz] * (self.k1 + 1))
                 / (
@@ -307,52 +343,3 @@ class BM25Plus(BM25):
                 )
             )
         return score.tolist()
-
-
-# BM25Adpt and BM25T are a bit more complicated than the previous algorithms here. Here a term-specific k1
-# parameter is calculated before scoring is done
-
-# class BM25Adpt(BM25):
-#     def __init__(self, corpus, k1=1.5, b=0.75, delta=1):
-#         # Algorithm specific parameters
-#         self.k1 = k1
-#         self.b = b
-#         self.delta = delta
-#         super().__init__(corpus)
-#
-#     def _calc_idf(self, nd):
-#         for word, freq in nd.items():
-#             idf = math.log((self.corpus_size + 1) / freq)
-#             self.idf[word] = idf
-#
-#     def get_scores(self, query):
-#         score = np.zeros(self.corpus_size)
-#         doc_len = np.array(self.doc_len)
-#         for q in query:
-#             q_freq = np.array([(doc.get(q) or 0) for doc in self.doc_freqs])
-#             score += (self.idf.get(q) or 0) * (self.delta + (q_freq * (self.k1 + 1)) /
-#                                                (self.k1 * (1 - self.b + self.b * doc_len / self.avgdl) + q_freq))
-#         return score
-#
-#
-# class BM25T(BM25):
-#     def __init__(self, corpus, k1=1.5, b=0.75, delta=1):
-#         # Algorithm specific parameters
-#         self.k1 = k1
-#         self.b = b
-#         self.delta = delta
-#         super().__init__(corpus)
-#
-#     def _calc_idf(self, nd):
-#         for word, freq in nd.items():
-#             idf = math.log((self.corpus_size + 1) / freq)
-#             self.idf[word] = idf
-#
-#     def get_scores(self, query):
-#         score = np.zeros(self.corpus_size)
-#         doc_len = np.array(self.doc_len)
-#         for q in query:
-#             q_freq = np.array([(doc.get(q) or 0) for doc in self.doc_freqs])
-#             score += (self.idf.get(q) or 0) * (self.delta + (q_freq * (self.k1 + 1)) /
-#                                                (self.k1 * (1 - self.b + self.b * doc_len / self.avgdl) + q_freq))
-#         return score

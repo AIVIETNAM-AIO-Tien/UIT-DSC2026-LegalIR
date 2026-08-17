@@ -1,8 +1,8 @@
 venv/
 .venv/
 
-data/selected-contexts/
-data/
+./data/selected-contexts/
+./data/
 cache/
 outputs/
 *.index
@@ -12,3 +12,11 @@ outputs/
 *.bin
 __pycache__/
 .ipynb_checkpoints/
+
+cache/
+train/
+train/context/selected-contexts
+
+shell.nix
+.envrc
+.direnv/

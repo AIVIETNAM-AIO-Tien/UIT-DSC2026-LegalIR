@@ -2,6 +2,7 @@ from collections.abc import Callable
 
 from src.data.schema import Chunk, Document
 from src.chunking.base import Chunker
+from src.types import DecoderFunc, TokenizerFunc
 
 
 class FixedSizeChunker(Chunker):
@@ -36,8 +37,8 @@ class FixedSizeChunker(Chunker):
 
     def __init__(
         self,
-        tokenize_fn: Callable[[str], list],
-        decode_fn: Callable[[list], str],
+        tokenize_fn: TokenizerFunc,
+        decode_fn: DecoderFunc,
         tokenizer_name: str,
         chunk_size: int = 2048,
         overlap: int = 256,

@@ -1,10 +1,12 @@
 import json
 from pathlib import Path
 
+from src.types import DirPath
+
 from .schema import Document, Query
 
 
-def load_documents(contexts_dir: str | Path) -> list[Document]:
+def load_documents(contexts_dir: DirPath) -> list[Document]:
     """
     Load legal documents from selected-contexts directory.
 
@@ -54,7 +56,7 @@ def load_documents(contexts_dir: str | Path) -> list[Document]:
     return documents
 
 
-def load_queries(path: str) -> list[Query]:
+def load_queries(path: DirPath) -> list[Query]:
     with open(
         path,
         "r",
