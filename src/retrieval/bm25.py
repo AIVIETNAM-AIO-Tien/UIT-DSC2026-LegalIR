@@ -23,7 +23,14 @@ def _tokenize_chunk_text(chunk: Chunk, tokenize_fn: TokenizerFunc) -> list[Token
     return tokenize_fn(chunk.text)
 
 
-def _tokenize_chunk_text(chunk, tokenize_fn):
+type ChunkId = str
+type DocumentId = str
+class ChunkMetaData(NamedTuple):
+    chunk_id: ChunkId
+    document_id: DocumentId
+
+
+def _tokenize_chunk_text(chunk: Chunk, tokenize_fn: TokenizerFunc) -> list[Token]:
     return tokenize_fn(chunk.text)
 
 
