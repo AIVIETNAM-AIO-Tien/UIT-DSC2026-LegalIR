@@ -1,10 +1,12 @@
 import json
 from pathlib import Path
 
+from src.types import DirPath
+
 
 def build_submission(
     retrieval_results: dict[str, list[str]],
-    output_path: str | Path,
+    output_path: DirPath,
     top_k: int = 5,
 ):
     """

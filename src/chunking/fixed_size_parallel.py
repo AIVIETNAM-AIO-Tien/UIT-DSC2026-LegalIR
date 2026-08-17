@@ -5,6 +5,7 @@ from itertools import chain
 
 from src.data.schema import Chunk, Document
 from src.chunking.base import Chunker
+from src.types import DecoderFunc, Token, TokenizerFunc
 
 
 class FixedSizeChunkerParallel(Chunker):
@@ -29,8 +30,8 @@ class FixedSizeChunkerParallel(Chunker):
 
     def __init__(
         self,
-        tokenize_fn: Callable[[str], list],
-        decode_fn: Callable[[list], str],
+        tokenize_fn: TokenizerFunc,
+        decode_fn: DecoderFunc,
         tokenizer_name: str,
         chunk_size: int = 2048,
         overlap: int = 256,
@@ -59,22 +60,22 @@ class FixedSizeChunkerParallel(Chunker):
         """
         Split a single document into fixed-size token chunks.
         """
-        tokens = self.tokenize_fn(document.text)
+        tokens: list[Token] = self.tokenize_fn(document.text)
 
         if not tokens:
             return []
 
-        chunks = []
-        step = self.chunk_size - self.overlap
+        chunks: list[Chunk] = []
+        step: int = self.chunk_size - self.overlap
 
         for chunk_index, start in enumerate(range(0, len(tokens), step)):
-            end = start + self.chunk_size
-            chunk_tokens = tokens[start:end]
+            end: int = start + self.chunk_size
+            chunk_tokens: list[Token] = tokens[start:end]
 
             if not chunk_tokens:
                 break
 
-            chunk_text = self.decode_fn(chunk_tokens)
+            chunk_text: str = self.decode_fn(chunk_tokens)
             chunk_id = f"{document.document_id}_{chunk_index:03d}"
 
             chunk = Chunk(
@@ -92,8 +93,7 @@ class FixedSizeChunkerParallel(Chunker):
 
             chunks.append(chunk)
 
-            if end >= len(tokens):
-                break
+            if end >= len(tokens): break
 
         return chunks
 

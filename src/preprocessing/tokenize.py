@@ -1,7 +1,9 @@
 from pyvi import ViTokenizer
 
+from src.types import RawText, Token
 
-def tokenize_vietnamese(text: str) -> list[str]:
+
+def tokenize_vietnamese(text: RawText) -> list[Token]:
     """
     Tokenize Vietnamese text using PyVi.
 
@@ -24,5 +26,5 @@ def tokenize_vietnamese(text: str) -> list[str]:
 
     return tokenized_text.split()
 
-def decode_vietnamese(tokens: list[str]) -> str:
-    return " ".join(tokens)
+def decode_vietnamese(tokens: list[Token]) -> RawText:
+    return RawText(" ".join(tokens))
