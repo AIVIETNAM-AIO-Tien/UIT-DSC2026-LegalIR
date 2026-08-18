@@ -1,7 +1,8 @@
 import argparse
 import json
-from pathlib import Path
 
+from pathlib import Path
+from dataclasses import asdict
 import numpy as np
 
 from src.data.loader import (
@@ -11,7 +12,6 @@ from src.data.loader import (
 
 from src.retrieval.dense import DenseRetriever
 from src.retrieval.aggregation import aggregate_max_score
-
 from src.evaluation.evaluator import Evaluator
 
 
@@ -93,14 +93,14 @@ def parse_args():
     parser.add_argument(
         "--output",
         type=str,
-        default="outputs/dense/result.json",
+        default=None,
         help="Path to benchmark result JSON.",
     )
 
     parser.add_argument(
         "--output-chunks",
         type=str,
-        default="outputs/dense/dense_chunks.json",
+        default=None,
         help=(
             "Path to save Dense chunks when "
             "building the index."
@@ -110,10 +110,28 @@ def parse_args():
     parser.add_argument(
         "--output-embeddings",
         type=str,
-        default="outputs/dense/dense_chunk_embeddings.npy",
+        default=None,
         help=(
             "Path to save Dense embeddings when "
             "building the index."
+        ),
+    )
+
+    parser.add_argument(
+        "--save-top-chunks-result",
+        type=str,
+        default=None,
+        help=(
+            "Path to save top-chunk-results"
+        ),
+    )
+        
+    parser.add_argument(
+        "--save-top-docs-result",
+        type=str,
+        default=None,
+        help=(
+            "Path to save top-docs-results"
         ),
     )
 
@@ -404,20 +422,20 @@ def main():
         print("Saving Index")
         print("=" * 60)
 
-        retriever.save_index(
-            args.output_chunks,
-            args.output_embeddings
-        )
+        if args.output_chunks and args.output_embeddings:
+            retriever.save_index(
+                args.output_chunks,
+                args.output_embeddings
+            )
+            print(
+                "Saved:",
+                args.output_chunks,
+            )
 
-        print(
-            "Saved:",
-            args.output_chunks,
-        )
-
-        print(
-            "Saved:",
-            args.output_embeddings,
-        )
+            print(
+                "Saved:",
+                args.output_embeddings,
+            )
 
     # ==========================================================
     # Sanity Check
@@ -448,6 +466,8 @@ def main():
     print("=" * 60)
 
     retrieval_results = {}
+    top_chunk_results = {}
+    top_document_results = {}
 
     for index, query in enumerate(
         queries,
@@ -457,11 +477,15 @@ def main():
         results = retriever.retrieve(
             query=query,
         )
-
+        
+        top_chunk_results[query.query_id] = results
+        
         results = aggregate_max_score(
             results=results,
             top_k=args.top_k
         )
+
+        top_document_results[query.query_id] = results
 
         retrieval_results[
             query.query_id
@@ -562,15 +586,51 @@ def main():
     print("Saving benchmark result")
     print("=" * 60)
 
-    save_json(
-        result,
-        args.output,
-    )
+    if args.output:
+        save_json(
+            result,
+            args.output,
+        )
+        print(
+            "Saved:",
+            args.output,
+        )
 
-    print(
-        "Saved:",
-        args.output,
-    )
+
+    if args.save_top_chunks_result and top_chunk_results:
+        chunks_result_path = Path(args.save_top_chunks_result)
+        chunks_result_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with chunks_result_path.open("w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    query_id: [asdict(result) for result in results]
+                    for query_id, results in top_chunk_results.items()
+                },
+                f,
+                ensure_ascii=False,
+                indent=4
+            )
+
+        print(f"\nTop Chunk results saved to: {chunks_result_path}")
+
+
+    if args.save_top_docs_result and top_document_results:
+        docs_result_path = Path(args.save_top_docs_result)
+        docs_result_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with docs_result_path.open("w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    query_id: [asdict(result) for result in results]
+                    for query_id, results in top_document_results.items()
+                },
+                f,
+                ensure_ascii=False,
+                indent=4
+            )
+
+        print(f"\nTop Document results saved to: {docs_result_path}")
 
     # ==========================================================
     # Print Recall Summary
