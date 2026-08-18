@@ -561,7 +561,7 @@ class DenseRetriever(Retriever):
         self,
         query: Query,
         chunks: list[Chunk] | None = None,
-        top_k: int = 1000,
+        top_k: int = 500,
     ) -> list[RetrievalResult]:
         """
         Retrieve top-k Dense chunks.
